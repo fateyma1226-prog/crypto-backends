@@ -1,11 +1,18 @@
 const https = require('https');
-const WebSocket = require('ws');
 
 const TOKENS = ['BTC', 'ETH', 'BNB', 'SOL', 'XRP'];
 
+const COINGECKO_IDS = {
+  BTC: 'bitcoin',
+  ETH: 'ethereum', 
+  BNB: 'binancecoin',
+  SOL: 'solana',
+  XRP: 'ripple'
+};
+
 function fetchPrice(url) {
   return new Promise((resolve) => {
-    https.get(url, (res) => {
+    https.get(url, { headers: { 'User-Agent': 'Mozilla/5.0' } }, (res) => {
       let data = '';
       res.on('data', chunk => data += chunk);
       res.on('end', () => {
@@ -16,45 +23,25 @@ function fetchPrice(url) {
   });
 }
 
-function getBinancePrices() {
-  return new Promise((resolve) => {
-    const prices = {};
-    const symbols = ['BTCUSDT', 'ETHUSDT', 'BNBUSDT', 'SOLUSDT', 'XRPUSDT'];
-
-    const ws = new WebSocket('wss://stream.binance.com:9443/ws/!ticker@arr');
-
-    ws.on('message', (data) => {
-      const tickers = JSON.parse(data);
-      tickers.forEach(t => {
-        if (symbols.includes(t.s)) {
-          prices[t.s.replace('USDT', '')] = parseFloat(t.c);
-        }
-      });
-      if (Object.keys(prices).length >= 5) {
-        ws.close();
-        resolve(prices);
-      }
-    });
-
-    ws.on('error', () => resolve({}));
-    setTimeout(() => { ws.close(); resolve(prices); }, 5000);
-  });
-}
-
 async function getAllPrices(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Content-Type', 'application/json');
 
   const results = {};
 
-  // Binance WebSocket se prices lo
-  const binancePrices = await getBinancePrices();
+  // CoinGecko se Binance price lo
+  const ids = Object.values(COINGECKO_IDS).join(',');
+  const gecko = await fetchPrice(
+    `https://api.coingecko.com/api/v3/simple/price?ids=${ids}&vs_currencies=usd`
+  );
 
   for (const token of TOKENS) {
     results[token] = {};
 
-    // Binance
-    if (binancePrices[token]) results[token].binance = binancePrices[token];
+    // Binance price CoinGecko se
+    if (gecko && gecko[COINGECKO_IDS[token]]) {
+      results[token].binance = gecko[COINGECKO_IDS[token]].usd;
+    }
 
     // MEXC
     const mexc = await fetchPrice(
