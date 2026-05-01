@@ -26,9 +26,9 @@ async function getAllPrices(req, res) {
 
     // Binance
     const binance = await fetchPrice(
-      `https://api.binance.com/api/v3/ticker/24hr?symbol=${token}USDT`
+      `https://api.binance.com/api/v3/ticker/price?symbol=${token}USDT`
     );
-    if (binance) results[token].binance = parseFloat(binance.lastPrice);
+    if (binance) results[token].binance = parseFloat(binance.price);
 
     // MEXC
     const mexc = await fetchPrice(
