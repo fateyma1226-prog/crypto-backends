@@ -24,11 +24,12 @@ async function getAllPrices(req, res) {
   for (const token of TOKENS) {
     results[token] = {};
 
-    // Binance
-    const binance = await fetchPrice(
-      `https://api.binance.com/api/v3/ticker/price?symbol=${token}USDT`
-    );
-    if (binance) results[token].binance = parseFloat(binance.price);
+    // BINANCE
+
+   const binance = await fetchPrice(
+  `https://api.binance.com/api/v3/ticker/24hr?symbol=${token}USDT`
+);
+if (binance && binance.lastPrice) results[token].binance = parseFloat(binance.lastPrice);
 
     // MEXC
     const mexc = await fetchPrice(
