@@ -1,4 +1,5 @@
 const https = require('https');
+const WebSocket = require('ws');
 
 const TOKENS = ['BTC', 'ETH', 'BNB', 'SOL', 'XRP'];
 
@@ -15,21 +16,45 @@ function fetchPrice(url) {
   });
 }
 
+function getBinancePrices() {
+  return new Promise((resolve) => {
+    const prices = {};
+    const symbols = ['BTCUSDT', 'ETHUSDT', 'BNBUSDT', 'SOLUSDT', 'XRPUSDT'];
+
+    const ws = new WebSocket('wss://stream.binance.com:9443/ws/!ticker@arr');
+
+    ws.on('message', (data) => {
+      const tickers = JSON.parse(data);
+      tickers.forEach(t => {
+        if (symbols.includes(t.s)) {
+          prices[t.s.replace('USDT', '')] = parseFloat(t.c);
+        }
+      });
+      if (Object.keys(prices).length >= 5) {
+        ws.close();
+        resolve(prices);
+      }
+    });
+
+    ws.on('error', () => resolve({}));
+    setTimeout(() => { ws.close(); resolve(prices); }, 5000);
+  });
+}
+
 async function getAllPrices(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Content-Type', 'application/json');
 
   const results = {};
 
+  // Binance WebSocket se prices lo
+  const binancePrices = await getBinancePrices();
+
   for (const token of TOKENS) {
     results[token] = {};
 
-    // BINANCE
-
-   const binance = await fetchPrice(
-  `https://api.binance.com/api/v3/ticker/24hr?symbol=${token}USDT`
-);
-if (binance && binance.lastPrice) results[token].binance = parseFloat(binance.lastPrice);
+    // Binance
+    if (binancePrices[token]) results[token].binance = binancePrices[token];
 
     // MEXC
     const mexc = await fetchPrice(
